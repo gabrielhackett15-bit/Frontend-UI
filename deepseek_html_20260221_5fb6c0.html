@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeepSeek · Custom</title>
+    <style>
+        /* ----- DARK MODE (original DeepSeek palette) ----- */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: #1e1e1e;
+            color: #e0e0e0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        /* Header */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 24px;
+            background-color: #2a2a2a;
+            border-bottom: 1px solid #3a3a3a;
+            flex-shrink: 0;
+        }
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+            font-size: 1.3rem;
+            color: #ffffff;
+        }
+        .logo svg {
+            width: 28px;
+            height: 28px;
+            fill: none;
+            stroke: #6e8cff;
+            stroke-width: 2;
+        }
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .model-badge {
+            background-color: #3a3a3a;
+            padding: 4px 10px;
+            border-radius: 30px;
+            font-size: 0.8rem;
+            color: #b0b0b0;
+            border: 1px solid #4a4a4a;
+        }
+        .settings-btn {
+            background: none;
+            border: none;
+            font-size: 1.6rem;
+            line-height: 1;
+            cursor: pointer;
+            color: #b0b0b0;
+            padding: 0 6px;
+            transition: color 0.2s;
+        }
+        .settings-btn:hover {
+            color: #ffffff;
+        }
+        /* Main chat area */
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            max-width: 1000px;
+            margin: 0 auto;
+            width: 100%;
+            background-color: #1e1e1e;
+        }
+        /* Message row */
+        .message {
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+        }
+        .message.user {
+            flex-direction: row-reverse;
+        }
+        .avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background-color: #3a3a3a;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.9rem;
+            flex-shrink: 0;
+        }
+        .message.user .avatar {
+            background-color: #6e8cff;
+        }
+        .bubble {
+            max-width: 70%;
+            padding: 12px 18px;
+            border-radius: 22px;
+            background-color: #2a2a2a;
+            color: #e0e0e0;
+            line-height: 1.6;
+            word-wrap: break-word;
+            font-size: 0.95rem;
+            border: 1px solid #3a3a3a;
+        }
+        .message.user .bubble {
+            background-color: #6e8cff;
+            color: white;
+            border: none;
+        }
+        .bubble pre {
+            background: #1a1a1a;
+            padding: 12px;
+            border-radius: 12px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            color: #d4d4d4;
+            margin: 8px 0;
+        }
+        .bubble code {
+            background: #1a1a1a;
+            padding: 2px 6px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+        }
+        .bubble p {
+            margin: 0 0 8px 0;
+        }
+        .bubble p:last-child {
+            margin-bottom: 0;
+        }
+        /* Input area */
+        .input-area {
+            padding: 20px 24px;
+            border-top: 1px solid #3a3a3a;
+            background-color: #2a2a2a;
+            flex-shrink: 0;
+        }
+        .input-form {
+            display: flex;
+            gap: 12px;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        textarea {
+            flex: 1;
+            padding: 14px 20px;
+            border: 1px solid #4a4a4a;
+            border-radius: 30px;
+            background-color: #1e1e1e;
+            color: #e0e0e0;
+            font-size: 1rem;
+            resize: none;
+            outline: none;
+            font-family: inherit;
+            transition: border 0.2s;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        textarea:focus {
+            border-color: #6e8cff;
+        }
+        textarea::placeholder {
+            color: #6a6a6a;
+        }
+        button[type="submit"] {
+            background-color: #6e8cff;
+            color: white;
+            border: none;
+            border-radius: 30px;
+            padding: 0 32px;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button[type="submit"]:hover {
+            background-color: #5a7ae0;
+        }
+        button[type="submit"]:disabled {
+            background-color: #4a4a4a;
+            cursor: not-allowed;
+        }
+        /* Settings modal (dark) */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal {
+            background-color: #2a2a2a;
+            border-radius: 24px;
+            width: 450px;
+            max-width: 90%;
+            padding: 28px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+            border: 1px solid #4a4a4a;
+            color: #e0e0e0;
+        }
+        .modal h2 {
+            margin-bottom: 20px;
+            font-size: 1.6rem;
+            font-weight: 500;
+        }
+        .field {
+            margin-bottom: 20px;
+        }
+        .field label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 500;
+            font-size: 0.95rem;
+            color: #b0b0b0;
+        }
+        .field input, .field select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #4a4a4a;
+            border-radius: 16px;
+            background-color: #1e1e1e;
+            color: #e0e0e0;
+            font-size: 0.95rem;
+            outline: none;
+        }
+        .field input:focus, .field select:focus {
+            border-color: #6e8cff;
+        }
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 28px;
+        }
+        .modal button {
+            padding: 10px 22px;
+            border-radius: 30px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            font-size: 0.95rem;
+        }
+        .save-btn {
+            background-color: #6e8cff;
+            color: white;
+        }
+        .cancel-btn {
+            background-color: #3a3a3a;
+            color: #e0e0e0;
+            border: 1px solid #5a5a5a;
+        }
+        .small-note {
+            color: #888;
+            font-size: 0.8rem;
+            margin-top: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">
+            <svg viewBox="0 0 24 24">
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+            </svg>
+            DeepSeek
+        </div>
+        <div class="header-right">
+            <span class="model-badge" id="modelDisplay">model not set</span>
+            <button class="settings-btn" id="settingsBtn">⚙️</button>
+        </div>
+    </div>
+
+    <div class="chat-container" id="chatContainer">
+        <!-- initial message -->
+        <div class="message assistant">
+            <div class="avatar">AI</div>
+            <div class="bubble">Hello! I'm ready to help. Configure your proxy and model using the settings button.</div>
+        </div>
+    </div>
+
+    <div class="input-area">
+        <form class="input-form" id="chatForm">
+            <textarea id="userInput" placeholder="Type your message..." rows="1"></textarea>
+            <button type="submit" id="sendBtn">Send</button>
+        </form>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal-overlay" id="settingsModal">
+        <div class="modal">
+            <h2>Settings</h2>
+            <div class="field">
+                <label>Reverse Proxy URL (OpenAI compatible)</label>
+                <input type="url" id="proxyUrl" placeholder="http://localhost:8080/v1" value="https://api.openai.com/v1">
+                <div class="small-note">Include /v1 if needed</div>
+            </div>
+            <div class="field">
+                <label>Model Name</label>
+                <input type="text" id="modelName" placeholder="e.g. gpt-4, deepseek-chat" value="gpt-3.5-turbo">
+            </div>
+            <div class="field">
+                <label>API Key (optional)</label>
+                <input type="password" id="apiKey" placeholder="sk-...">
+            </div>
+            <div class="modal-actions">
+                <button class="cancel-btn" id="cancelSettings">Cancel</button>
+                <button class="save-btn" id="saveSettings">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            // ----- DOM elements -----
+            const chatContainer = document.getElementById('chatContainer');
+            const chatForm = document.getElementById('chatForm');
+            const userInput = document.getElementById('userInput');
+            const sendBtn = document.getElementById('sendBtn');
+            const settingsBtn = document.getElementById('settingsBtn');
+            const settingsModal = document.getElementById('settingsModal');
+            const cancelSettings = document.getElementById('cancelSettings');
+            const saveSettings = document.getElementById('saveSettings');
+            const proxyUrlInput = document.getElementById('proxyUrl');
+            const modelNameInput = document.getElementById('modelName');
+            const apiKeyInput = document.getElementById('apiKey');
+            const modelDisplay = document.getElementById('modelDisplay');
+
+            // ----- State -----
+            let messages = [
+                { role: 'assistant', content: 'Hello! I\'m ready to help. Configure your proxy and model using the settings button.' }
+            ];
+            let isLoading = false;
+
+            // ----- Load settings from localStorage -----
+            function loadSettings() {
+                const savedProxy = localStorage.getItem('proxyUrl');
+                const savedModel = localStorage.getItem('modelName');
+                const savedApiKey = localStorage.getItem('apiKey');
+                if (savedProxy) proxyUrlInput.value = savedProxy;
+                if (savedModel) modelNameInput.value = savedModel;
+                if (savedApiKey) apiKeyInput.value = savedApiKey;
+                updateModelDisplay();
+            }
+
+            function saveSettingsToStorage() {
+                localStorage.setItem('proxyUrl', proxyUrlInput.value.trim());
+                localStorage.setItem('modelName', modelNameInput.value.trim());
+                localStorage.setItem('apiKey', apiKeyInput.value.trim());
+                updateModelDisplay();
+            }
+
+            function updateModelDisplay() {
+                const model = modelNameInput.value.trim() || 'not set';
+                modelDisplay.textContent = `Model: ${model}`;
+            }
+
+            // ----- Render messages with simple formatting -----
+            function renderMessages() {
+                chatContainer.innerHTML = '';
+                messages.forEach(msg => {
+                    const msgDiv = document.createElement('div');
+                    msgDiv.className = `message ${msg.role}`;
+
+                    const avatar = document.createElement('div');
+                    avatar.className = 'avatar';
+                    avatar.textContent = msg.role === 'user' ? 'You' : 'AI';
+
+                    const bubble = document.createElement('div');
+                    bubble.className = 'bubble';
+
+                    // Escape and format content (basic markdown)
+                    let content = msg.content
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;')
+                        .replace(/```([\s\S]*?)```/g, '<pre>$1</pre>')
+                        .replace(/`([^`]+)`/g, '<code>$1</code>')
+                        .replace(/\n/g, '<br>');
+
+                    bubble.innerHTML = content;
+
+                    msgDiv.appendChild(avatar);
+                    msgDiv.appendChild(bubble);
+                    chatContainer.appendChild(msgDiv);
+                });
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            }
+
+            function addMessage(role, content) {
+                messages.push({ role, content });
+                renderMessages();
+            }
+
+            // ----- API call -----
+            async function sendMessageToAPI(userMessage) {
+                const proxyUrl = proxyUrlInput.value.trim();
+                const model = modelNameInput.value.trim();
+                const apiKey = apiKeyInput.value.trim();
+
+                if (!proxyUrl || !model) {
+                    throw new Error('Proxy URL and model must be set in settings.');
+                }
+
+                // Build full URL (append /chat/completions if not present)
+                let baseUrl = proxyUrl;
+                if (!baseUrl.endsWith('/chat/completions')) {
+                    if (!baseUrl.endsWith('/')) baseUrl += '/';
+                    baseUrl += 'chat/completions';
+                }
+
+                const apiMessages = messages.map(m => ({ role: m.role, content: m.content }));
+
+                const response = await fetch(baseUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(apiKey && { 'Authorization': `Bearer ${apiKey}` })
+                    },
+                    body: JSON.stringify({
+                        model: model,
+                        messages: apiMessages,
+                        stream: false
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`API error (${response.status}): ${errorText}`);
+                }
+
+                const data = await response.json();
+                return data.choices[0].message.content;
+            }
+
+            // ----- Event: send message -----
+            chatForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const userMessage = userInput.value.trim();
+                if (!userMessage || isLoading) return;
+
+                addMessage('user', userMessage);
+                userInput.value = '';
+                userInput.style.height = 'auto';
+
+                isLoading = true;
+                sendBtn.disabled = true;
+
+                try {
+                    const assistantReply = await sendMessageToAPI(userMessage);
+                    addMessage('assistant', assistantReply);
+                } catch (error) {
+                    addMessage('assistant', `**Error:** ${error.message}`);
+                } finally {
+                    isLoading = false;
+                    sendBtn.disabled = false;
+                }
+            });
+
+            // Auto-resize textarea
+            userInput.addEventListener('input', () => {
+                userInput.style.height = 'auto';
+                userInput.style.height = Math.min(userInput.scrollHeight, 150) + 'px';
+            });
+
+            // ----- Settings modal -----
+            settingsBtn.addEventListener('click', () => {
+                settingsModal.style.display = 'flex';
+            });
+
+            cancelSettings.addEventListener('click', () => {
+                settingsModal.style.display = 'none';
+                loadSettings(); // revert to saved
+            });
+
+            saveSettings.addEventListener('click', () => {
+                saveSettingsToStorage();
+                settingsModal.style.display = 'none';
+            });
+
+            // Close modal when clicking overlay
+            settingsModal.addEventListener('click', (e) => {
+                if (e.target === settingsModal) {
+                    settingsModal.style.display = 'none';
+                    loadSettings();
+                }
+            });
+
+            // ----- Initialization -----
+            loadSettings();
+            renderMessages();
+
+            // Optional: fetch model list from proxy (if /models endpoint exists)
+            async function fetchModelList() {
+                const proxyUrl = proxyUrlInput.value.trim();
+                if (!proxyUrl) return;
+                try {
+                    const url = proxyUrl.endsWith('/') ? proxyUrl + 'models' : proxyUrl + '/models';
+                    const response = await fetch(url, {
+                        headers: apiKeyInput.value.trim() ? { 'Authorization': `Bearer ${apiKeyInput.value.trim()}` } : {}
+                    });
+                    if (response.ok) {
+                        const data = await response.json();
+                        console.log('Available models:', data);
+                    }
+                } catch (e) {}
+            }
+            // You could call fetchModelList() when proxy changes, but it's optional.
+        })();
+    </script>
+</body>
+</html>
