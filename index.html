@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DeepSeek · Custom</title>
+    <title>DeepSeek · Custom with Thinking & Search</title>
     <style>
         /* ----- DARK MODE (original DeepSeek palette) ----- */
         * {
@@ -56,6 +56,12 @@
             font-size: 0.8rem;
             color: #b0b0b0;
             border: 1px solid #4a4a4a;
+            display: flex;
+            gap: 8px;
+        }
+        .badge-indicator {
+            color: #6e8cff;
+            font-weight: 500;
         }
         .settings-btn {
             background: none;
@@ -123,6 +129,47 @@
             background-color: #6e8cff;
             color: white;
             border: none;
+        }
+        /* Thinking collapsible section */
+        .thinking-toggle {
+            background-color: #2a2a2a;
+            border: 1px solid #4a4a4a;
+            border-radius: 16px;
+            margin-bottom: 12px;
+            padding: 10px 16px;
+            cursor: pointer;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #b0b0b0;
+            font-size: 0.9rem;
+            transition: background 0.2s;
+        }
+        .thinking-toggle:hover {
+            background-color: #3a3a3a;
+        }
+        .thinking-toggle .arrow {
+            font-size: 1rem;
+            transition: transform 0.2s;
+        }
+        .thinking-toggle.open .arrow {
+            transform: rotate(90deg);
+        }
+        .thinking-content {
+            background-color: #1a1a1a;
+            border: 1px solid #3a3a3a;
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 16px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            color: #b0b0b0;
+            white-space: pre-wrap;
+            display: none;
+        }
+        .thinking-content.visible {
+            display: block;
         }
         .bubble pre {
             background: #1a1a1a;
@@ -215,7 +262,7 @@
         .modal {
             background-color: #2a2a2a;
             border-radius: 24px;
-            width: 450px;
+            width: 500px;
             max-width: 90%;
             padding: 28px;
             box-shadow: 0 20px 40px rgba(0,0,0,0.5);
@@ -249,6 +296,21 @@
         }
         .field input:focus, .field select:focus {
             border-color: #6e8cff;
+        }
+        .checkbox-field {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .checkbox-field input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: #6e8cff;
+        }
+        .checkbox-field label {
+            margin-bottom: 0;
+            cursor: pointer;
         }
         .modal-actions {
             display: flex;
@@ -289,7 +351,10 @@
             DeepSeek
         </div>
         <div class="header-right">
-            <span class="model-badge" id="modelDisplay">model not set</span>
+            <span class="model-badge" id="modelDisplay">
+                <span id="modelNameDisplay">model not set</span>
+                <span id="modelFlags" class="badge-indicator"></span>
+            </span>
             <button class="settings-btn" id="settingsBtn">⚙️</button>
         </div>
     </div>
@@ -320,11 +385,19 @@
             </div>
             <div class="field">
                 <label>Model Name</label>
-                <input type="text" id="modelName" placeholder="e.g. gpt-4, deepseek-chat" value="gpt-3.5-turbo">
+                <input type="text" id="modelName" placeholder="e.g. deepseek-chat, gpt-4" value="deepseek-chat">
             </div>
             <div class="field">
                 <label>API Key (optional)</label>
                 <input type="password" id="apiKey" placeholder="sk-...">
+            </div>
+            <div class="checkbox-field">
+                <input type="checkbox" id="deepThinkCheck">
+                <label for="deepThinkCheck">Enable DeepThink (reasoning)</label>
+            </div>
+            <div class="checkbox-field">
+                <input type="checkbox" id="searchCheck">
+                <label for="searchCheck">Enable Search (web search)</label>
             </div>
             <div class="modal-actions">
                 <button class="cancel-btn" id="cancelSettings">Cancel</button>
@@ -347,7 +420,10 @@
             const proxyUrlInput = document.getElementById('proxyUrl');
             const modelNameInput = document.getElementById('modelName');
             const apiKeyInput = document.getElementById('apiKey');
-            const modelDisplay = document.getElementById('modelDisplay');
+            const deepThinkCheck = document.getElementById('deepThinkCheck');
+            const searchCheck = document.getElementById('searchCheck');
+            const modelNameDisplay = document.getElementById('modelNameDisplay');
+            const modelFlags = document.getElementById('modelFlags');
 
             // ----- State -----
             let messages = [
@@ -360,9 +436,15 @@
                 const savedProxy = localStorage.getItem('proxyUrl');
                 const savedModel = localStorage.getItem('modelName');
                 const savedApiKey = localStorage.getItem('apiKey');
+                const savedDeepThink = localStorage.getItem('deepThink') === 'true';
+                const savedSearch = localStorage.getItem('search') === 'true';
+
                 if (savedProxy) proxyUrlInput.value = savedProxy;
                 if (savedModel) modelNameInput.value = savedModel;
                 if (savedApiKey) apiKeyInput.value = savedApiKey;
+                deepThinkCheck.checked = savedDeepThink;
+                searchCheck.checked = savedSearch;
+
                 updateModelDisplay();
             }
 
@@ -370,15 +452,34 @@
                 localStorage.setItem('proxyUrl', proxyUrlInput.value.trim());
                 localStorage.setItem('modelName', modelNameInput.value.trim());
                 localStorage.setItem('apiKey', apiKeyInput.value.trim());
+                localStorage.setItem('deepThink', deepThinkCheck.checked);
+                localStorage.setItem('search', searchCheck.checked);
                 updateModelDisplay();
             }
 
             function updateModelDisplay() {
                 const model = modelNameInput.value.trim() || 'not set';
-                modelDisplay.textContent = `Model: ${model}`;
+                modelNameDisplay.textContent = `Model: ${model}`;
+
+                const flags = [];
+                if (deepThinkCheck.checked) flags.push('🧠 DeepThink');
+                if (searchCheck.checked) flags.push('🔍 Search');
+                modelFlags.textContent = flags.length ? ' · ' + flags.join(' ') : '';
             }
 
-            // ----- Render messages with simple formatting -----
+            // ----- Parse thinking tags from content -----
+            function parseThinking(content) {
+                const thinkRegex = /([\s\S]*?)<\/think>/i;
+                const match = content.match(thinkRegex);
+                if (match) {
+                    const thinking = match[1].trim();
+                    const answer = content.replace(thinkRegex, '').trim();
+                    return { thinking, answer };
+                }
+                return { thinking: null, answer: content };
+            }
+
+            // ----- Render messages with thinking dropdown -----
             function renderMessages() {
                 chatContainer.innerHTML = '';
                 messages.forEach(msg => {
@@ -392,16 +493,77 @@
                     const bubble = document.createElement('div');
                     bubble.className = 'bubble';
 
-                    // Escape and format content (basic markdown)
-                    let content = msg.content
-                        .replace(/&/g, '&amp;')
-                        .replace(/</g, '&lt;')
-                        .replace(/>/g, '&gt;')
-                        .replace(/```([\s\S]*?)```/g, '<pre>$1</pre>')
-                        .replace(/`([^`]+)`/g, '<code>$1</code>')
-                        .replace(/\n/g, '<br>');
+                    if (msg.role === 'assistant') {
+                        const { thinking, answer } = parseThinking(msg.content);
 
-                    bubble.innerHTML = content;
+                        // If there's thinking, create collapsible section
+                        if (thinking) {
+                            const toggleDiv = document.createElement('div');
+                            toggleDiv.className = 'thinking-toggle';
+                            toggleDiv.innerHTML = `<span class="arrow">▶</span> <span>💭 Show thinking</span>`;
+
+                            const thinkingDiv = document.createElement('div');
+                            thinkingDiv.className = 'thinking-content';
+                            // Format thinking content (basic escape)
+                            let formattedThinking = thinking
+                                .replace(/&/g, '&amp;')
+                                .replace(/</g, '&lt;')
+                                .replace(/>/g, '&gt;')
+                                .replace(/\n/g, '<br>');
+                            thinkingDiv.innerHTML = formattedThinking;
+
+                            // Toggle functionality
+                            toggleDiv.addEventListener('click', (e) => {
+                                e.stopPropagation();
+                                const isOpen = thinkingDiv.classList.contains('visible');
+                                if (isOpen) {
+                                    thinkingDiv.classList.remove('visible');
+                                    toggleDiv.classList.remove('open');
+                                    toggleDiv.querySelector('.arrow').textContent = '▶';
+                                } else {
+                                    thinkingDiv.classList.add('visible');
+                                    toggleDiv.classList.add('open');
+                                    toggleDiv.querySelector('.arrow').textContent = '▼';
+                                }
+                            });
+
+                            bubble.appendChild(toggleDiv);
+                            bubble.appendChild(thinkingDiv);
+
+                            // Add the answer part (formatted)
+                            let formattedAnswer = answer
+                                .replace(/&/g, '&amp;')
+                                .replace(/</g, '&lt;')
+                                .replace(/>/g, '&gt;')
+                                .replace(/```([\s\S]*?)```/g, '<pre>$1</pre>')
+                                .replace(/`([^`]+)`/g, '<code>$1</code>')
+                                .replace(/\n/g, '<br>');
+
+                            const answerDiv = document.createElement('div');
+                            answerDiv.innerHTML = formattedAnswer;
+                            bubble.appendChild(answerDiv);
+                        } else {
+                            // No thinking, just normal content
+                            let formatted = msg.content
+                                .replace(/&/g, '&amp;')
+                                .replace(/</g, '&lt;')
+                                .replace(/>/g, '&gt;')
+                                .replace(/```([\s\S]*?)```/g, '<pre>$1</pre>')
+                                .replace(/`([^`]+)`/g, '<code>$1</code>')
+                                .replace(/\n/g, '<br>');
+                            bubble.innerHTML = formatted;
+                        }
+                    } else {
+                        // User message: simple formatting
+                        let formatted = msg.content
+                            .replace(/&/g, '&amp;')
+                            .replace(/</g, '&lt;')
+                            .replace(/>/g, '&gt;')
+                            .replace(/```([\s\S]*?)```/g, '<pre>$1</pre>')
+                            .replace(/`([^`]+)`/g, '<code>$1</code>')
+                            .replace(/\n/g, '<br>');
+                        bubble.innerHTML = formatted;
+                    }
 
                     msgDiv.appendChild(avatar);
                     msgDiv.appendChild(bubble);
@@ -420,6 +582,8 @@
                 const proxyUrl = proxyUrlInput.value.trim();
                 const model = modelNameInput.value.trim();
                 const apiKey = apiKeyInput.value.trim();
+                const deepThink = deepThinkCheck.checked;
+                const search = searchCheck.checked;
 
                 if (!proxyUrl || !model) {
                     throw new Error('Proxy URL and model must be set in settings.');
@@ -434,17 +598,22 @@
 
                 const apiMessages = messages.map(m => ({ role: m.role, content: m.content }));
 
+                // Build request body with optional parameters
+                const body = {
+                    model: model,
+                    messages: apiMessages,
+                    stream: false
+                };
+                if (deepThink) body.reasoning = true;      // DeepSeek uses 'reasoning'
+                if (search) body.search = true;            // DeepSeek uses 'search'
+
                 const response = await fetch(baseUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         ...(apiKey && { 'Authorization': `Bearer ${apiKey}` })
                     },
-                    body: JSON.stringify({
-                        model: model,
-                        messages: apiMessages,
-                        stream: false
-                    })
+                    body: JSON.stringify(body)
                 });
 
                 if (!response.ok) {
@@ -512,23 +681,6 @@
             // ----- Initialization -----
             loadSettings();
             renderMessages();
-
-            // Optional: fetch model list from proxy (if /models endpoint exists)
-            async function fetchModelList() {
-                const proxyUrl = proxyUrlInput.value.trim();
-                if (!proxyUrl) return;
-                try {
-                    const url = proxyUrl.endsWith('/') ? proxyUrl + 'models' : proxyUrl + '/models';
-                    const response = await fetch(url, {
-                        headers: apiKeyInput.value.trim() ? { 'Authorization': `Bearer ${apiKeyInput.value.trim()}` } : {}
-                    });
-                    if (response.ok) {
-                        const data = await response.json();
-                        console.log('Available models:', data);
-                    }
-                } catch (e) {}
-            }
-            // You could call fetchModelList() when proxy changes, but it's optional.
         })();
     </script>
 </body>
